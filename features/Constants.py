@@ -1,0 +1,2 @@
+MAX_TIME = 10
+MAX_UPS = 10
