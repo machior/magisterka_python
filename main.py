@@ -15,10 +15,13 @@ class SelectionWindow:
 
         self.in_path_string = tk.StringVar(value=in_path)
         self.out_path_string = tk.StringVar()
+        self.recursively = tk.BooleanVar(root, value=False)
         tk.Button(root, text="Source Directory", command=self.get_source_dir).pack(side=tk.TOP)
         tk.Label(None, textvariable=self.in_path_string, fg='black').pack()
         tk.Button(root, text="Destination Directory", command=self.get_destination_dir).pack(side=tk.TOP)
         tk.Label(None, textvariable=self.out_path_string, fg='black').pack()
+
+        tk.Checkbutton(root, text="Recursively", variable=self.recursively).pack()
 
         tk.Button(root, text="Start", command=self.get_files).pack(side=tk.TOP)
         root.mainloop()
@@ -33,7 +36,12 @@ class SelectionWindow:
 
     def get_files(self):
         if self.in_path is not None and self.out_path is not None:
-            get_files(file_name='all', in_dir_path=self.in_path, out_dir_path=self.out_path)
+            get_files(
+                file_name='all',
+                in_dir_path=self.in_path,
+                out_dir_path=self.out_path,
+                recursively=self.recursively.get()
+            )
 
 
 if __name__ == '__main__':
