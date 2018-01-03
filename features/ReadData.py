@@ -10,14 +10,9 @@
 # Pressure: self explanatory
 # EndPts: 1 indicates end of a signature segment, 0 otherwise
 
-# from pylab import *
-import csv
-
-import pylab as pl
 import matplotlib.pyplot as plt
-import numpy as np
 
-from features.AuxiliaryFunctions import smooth
+from features.AuxiliaryFunctions import *
 
 
 def get_derivatives(x, y, t_stamp):
@@ -29,43 +24,42 @@ def get_derivatives(x, y, t_stamp):
     return d_x, d_y, t_steps, v_x
 
 
-class RawPoint:
-    def __init__(self, x, y, t_stamp, pressure, end_pts):
-        self.x = x
-        self.y = y
-        self.t_stamp = t_stamp
-        self.pressure = pressure
-        self.end_pts = end_pts
+def process_points(raw_points):
+    values = ValuesArrays()
+
+    for raw_point in raw_points:
+        values.append(raw_point)
+
+    return values.get_values(), values.get_relatified_values()
 
 
-class SignPlot:
-    def __init__(self, y, x, title=None):
-        self.y = y
-        self.x = x
-        if title:
-            self.title = title
+def calculate_vel_acc(dimensions, t_stamp):
+    t_steps = pl.diff(t_stamp)
+    v = []
+    a = []
 
-    def dom(self):
-        return self.x
+    for dimension in dimensions:
+        derivative = dimension / t_steps
+        v.append(derivative)
+        a.append(pl.diff(derivative) / t_steps[1:])
 
-    def val(self):
-        return self.y
-
-    def plot(self):
-        if self.title:
-            pl.title(self.title)
-        pl.plot(self.x, self.y, marker='o', markersize=2)
-        pl.show()
+    return v, a
 
 
 class SignatureParams:
     features_container = []
 
     # basic values
-    x_val = None
-    y_val = None
-    p_val = None
+    x_abs = None
+    y_abs = None
+    p_abs = None
     t_stamp = None
+
+    # relatived values
+    x_r = None
+    y_r = None
+    p_r = None
+    t_r = None
 
     # basic plots objects
     x_plot = None
@@ -76,15 +70,23 @@ class SignatureParams:
     v_x_plot = None
     v_y_plot = None
     v_p_plot = None
-    t_steps = None
+
+    # accelerations
+    a_x_plot = None
+    a_y_plot = None
+    a_p_plot = None
 
     # derivatives
+    t_steps = None
     d_x = None
     d_y = None
     d_p = None
     v_x = None
     v_y = None
     v_p = None
+    a_x = None
+    a_y = None
+    a_p = None
 
     # additional parameters
     slant = None
@@ -94,6 +96,7 @@ class SignatureParams:
 
     def __init__(self, raw_points):
         self.rawPoints = raw_points
+
         self.fill_basic_fields()
 
         self.basic_calculates()
@@ -103,37 +106,42 @@ class SignatureParams:
         )
 
     def fill_basic_fields(self):
-        self.x_val = x_val = []
-        self.y_val = y_val = []
-        self.p_val = p_val = []
-        self.t_stamp = t_val = []
+        [x_abs, y_abs, p_abs, t_abs], [x_r, y_r, p_r, t_r] = process_points(self.rawPoints)
 
-        try:
-            for raw_point in self.rawPoints:
-                x_val.append(raw_point.x)
-                y_val.append(raw_point.y)
-                p_val.append(raw_point.pressure)
-                t_val.append(raw_point.t_stamp)
-        except Exception:
-            print(Exception)
+        self.x_r = x_r
+        self.y_r = y_r
+        self.p_r = p_r
+        self.t_r = t_r
 
-        self.x_plot = SignPlot(x_val, t_val, "x(t)")
-        self.y_plot = SignPlot(y_val, t_val, "y(t)")
-        self.p_plot = SignPlot(p_val, t_val, "p(t)")
+        self.x_abs = x_abs
+        self.y_abs = y_abs
+        self.p_abs = p_abs
+        self.t_stamp = t_abs
+
+        self.x_plot = SignPlot(x_abs, t_abs, "x(t)")
+        self.y_plot = SignPlot(y_abs, t_abs, "y(t)")
+        self.p_plot = SignPlot(p_abs, t_abs, "p(t)")
 
     def basic_calculates(self):
         # derivatives and velocities
-        self.t_steps = t_steps = pl.diff(self.x_plot.dom())
-        self.d_x = d_x = smooth(pl.diff(self.x_plot.val()))
-        self.d_y = d_y = smooth(pl.diff(self.y_plot.val()))
-        self.d_p = d_p = smooth(pl.diff(np.asarray(self.p_plot.val(), dtype=int)))
-        self.v_x_plot = SignPlot(d_x / t_steps, t_steps, "v_x(t)")
-        self.v_y_plot = SignPlot(d_y / t_steps, t_steps, "v_y(t)")
-        self.v_p_plot = SignPlot(d_p / t_steps, t_steps, "v_p(t)")
+        self.t_steps = pl.diff(self.t_stamp)
+        derivatives = derive_and_smooth([self.x_abs, self.y_abs, self.p_abs])
+        [self.d_x, self.d_y, self.d_p] = derivatives
+        [self.v_x, self.v_y, self.v_p], [self.a_x, self.a_y, self.a_p] = calculate_vel_acc(derivatives, self.t_stamp)
+
+        self.v_x_plot = SignPlot(self.v_x, self.t_stamp[1:], "v_x(t)")
+        self.v_y_plot = SignPlot(self.v_y, self.t_stamp[1:], "v_y(t)")
+        self.v_p_plot = SignPlot(self.v_p, self.t_stamp[1:], "v_p(t)")
+        # TODO calculations for v and a
+        # ValuesArrays.relativify_field(self.v_x)
+
+        self.a_x_plot = SignPlot(self.a_x, self.t_stamp[1:-1], "v_x(t)")
+        self.a_y_plot = SignPlot(self.a_y, self.t_stamp[1:-1], "v_y(t)")
+        self.a_p_plot = SignPlot(self.a_p, self.t_stamp[1:-1], "v_p(t)")
         # slant
-        slant = np.divide(self.d_y, self.d_x)
+        slant = self.d_y / self.d_x
         slant = np.delete(slant, np.argwhere(np.isnan(slant)))
-        self.slant = np.degrees(np.arctan(slant))
+        self.slant = np.mean(np.degrees(np.arctan(slant)))
         # sign path features
         path_traveled = np.cumsum((np.sqrt(self.d_x ** 2 + self.d_y ** 2)))
         self.path_traveled = path_traveled = np.insert(path_traveled, 0, 0)
@@ -143,30 +151,8 @@ class SignatureParams:
     def calculate_features(
             self,
             visualise_signature=False,
-            signature_center=True,
-            signature_duration=True,
-            component_time_spacing=True,
-            pen_down_ratio=True,
-            horizontal_length=True,
-            aspect_ratio=True,
-            pen_ups=True,
             cursiviness=True):
-        # print('slant: \n', self.slant)
-        # plot(self.rawPoints.y, self.rawPoints.x)
-        # plot(self.t_stamp, self.y)
-        # figure()
-        # plot(self.x, self.y, marker='o', markersize=2)
-        # figure()
-        # plot(self.t_stamp[1:], self.pen_velocity)
-        # plot(self.t_stamp[1:-1], self.pen_acceleration)
-        # # ion()
-        # show()
-        # # center of signature
-        # xCenter = mean(Xmeans);
-        # yCenter = mean(Ymeans);
-        # fullVector = [xCenter;
-        # yCenter];
-        if not visualise_signature:
+        if visualise_signature:
             # plt.ion()
             plt.plot(self.x_plot.val(), self.y_plot.val())
             plt.gca().invert_yaxis()
@@ -175,64 +161,98 @@ class SignatureParams:
             self.x_plot.plot()
             self.y_plot.plot()
 
-        # signature center
-        x_center = min(self.x_val) + (max(self.x_val) - min(self.x_val)) / 2
-        y_center = min(self.y_val) + (max(self.y_val) - min(self.y_val)) / 2
-
+        ##################################################
+        # GENERAL DEPENDENCIES
+        ##################################################
         # signature duration
         signatureDuration = self.t_stamp[-1]
+        signature_duration_ratio = 1 if signatureDuration < 1 else 1 / signatureDuration
 
-        # Component Time Spacing
-        penUpTime = sum([t_step for t_step in self.t_steps if t_step > 2 * self.t_steps[0]])
+        # Component Time Spacing and Pen-Ups
+        pen_ups = [t_step for t_step in self.t_steps if t_step > 2 * self.t_steps[0]]
+        pen_ups_ratio = 1 / len(pen_ups)
+        penUpTime = sum(pen_ups)
+        pen_up_time_ratio = 1 / penUpTime
 
-        # # pen-down ratio
-        penDownTime = self.t_stamp[-1] - penUpTime
-        penDownRatio = penDownTime / self.t_stamp[-1]
+        # pen-down ratio
+        penDownTime = signatureDuration - penUpTime
+        pen_down_ratio = penDownTime / signatureDuration
 
-        # horizontal length
-        hLength = max(self.x_val) - min(self.x_val)
-
+        ##################################################
+        # y(x) DEPENDENCIES
+        ##################################################
         # aspect ratio
-        aRatio = hLength / (max(self.y_val) - min(self.y_val))
+        hLength = max(self.x_abs) - min(self.x_abs)
+        vHeight = max(self.y_abs) - min(self.y_abs)
+        a_Ratio = normalise_aRatio(hLength / vHeight)
 
-        # pen-ups
-        penUps = sum(self.t_steps > self.t_steps[1]) + 1
+        # mass center / mean value
+        mass_center_x = np.mean(self.x_r)
+        mass_center_y = np.mean(self.y_r)
+        mass_center_p = np.mean(self.p_r)
 
-        # cursiviness
-        cursiviness = hLength / penUps
+        # upper part advantage
+        points_above_center = len([y_r for y_r in self.y_r if y_r > 0.5])
+        points_above_center_r = points_above_center / len(self.y_r)
 
-        # top heaviness
-        topHeav = pl.mean(self.y_val) / pl.median(self.y_val)
+        # left part advantage
+        points_left_to_center = len([x_r for x_r in self.x_r if x_r > 0.5])
+        points_left_to_center_r = points_left_to_center / len(self.x_r)
 
-        # Horizontal Dispersion
-        horDisp = pl.mean(self.x_val) / pl.median(self.x_val)
+        # harder part advantage
+        harder_points = len([p_r for p_r in self.p_r if p_r > 0.5])
+        harder_points_r = harder_points / len(self.p_r)
 
-        # curvature
-        curvature = sum(pl.sqrt(self.d_x ** 2 + self.d_y ** 2)) / hLength
+        # std deviation
+        std_dev_x = np.std(self.x_r)
+        std_dev_y = np.std(self.y_r)
+        std_dev_p = np.std(self.p_r)
 
-        # Strokes
-        # smoothedX = smoothen_plot(self.x_val, 5)
-        # smoothedY = smoothen_plot(self.y_val, 5)
-        # [XlocExtr, XlocExtrInd] = getExtremes(smoothedX)
-        # [YlocExtr, YlocExtrInd] = getExtremes(smoothedY)
-        # hStrokes = length(XlocExtrInd) + 1
-        # vStrokes = length(YlocExtrInd) + 1
+        # cumsum axis x / abs ( 1 / curvature )
+        path_traveled_x = sum(abs(self.d_x))
+        x_travel_ratio = path_traveled_x / max(self.path_traveled)
 
-        # Maximum velocity
-        maxVelocity = max(self.pen_velocity)
+        ##################################################
+        # x(t) DEPENDENCIES
+        ##################################################
+        # x trend line
+        x_trend = np.polyfit(self.x_r, self.t_r, 1)
+        x_a_trend = normalise_trend(x_trend[0])
+        x_b_trend = normalise_trend(x_trend[1])
+
+        # y trend line
+        y_trend = np.polyfit(self.y_r, self.t_r, 1)
+        y_a_trend = normalise_trend(y_trend[0])
+        y_b_trend = normalise_trend(y_trend[1])
+
+        # y trend line
+        p_trend = np.polyfit(self.p_r, self.t_r, 1)
+        p_a_trend = normalise_trend(p_trend[0])
+        p_b_trend = normalise_trend(p_trend[1])
+
+        # median value
+        mean_med_x = pl.median(self.x_abs)
+        mean_med_y = pl.median(self.y_abs)
+        mean_med_p = pl.median(self.p_abs)
+
+        # mean / median velocity
+        mean_max_vel = pl.mean(self.pen_velocity) / pl.median(self.pen_velocity)
 
         # Average velocity
         meanVelocity = pl.mean(self.pen_velocity)
 
-        # print('signatureDuration: ', signatureDuration,
-        #       '\npenDownRatio: ', penDownRatio,
-        #       '\naRatio: ', aRatio, '\ncursiviness: ', cursiviness)
+        self.features_container = [
+            signature_duration_ratio, a_Ratio,
+            pen_ups_ratio, pen_up_time_ratio, pen_down_ratio,
+            mass_center_x, mass_center_y, mass_center_p,
+            mean_med_x, mean_med_y, mean_med_p,
+            points_above_center_r, points_left_to_center_r, harder_points_r,
+            std_dev_x, std_dev_y, std_dev_p,
+            x_travel_ratio,
+            x_a_trend, y_a_trend, p_a_trend,
+            x_b_trend, y_b_trend, p_b_trend,
 
-        self.features_container = [signatureDuration, penDownRatio, aRatio, cursiviness]
-        # with open('test.csv', 'w') as csvfile:
-        #     spamwriter = csv.writer(csvfile)
-        #     spamwriter.writerow(['signatureDuration', 'penDownRatio', 'aRatio', 'cursiviness'])
-        #     spamwriter.writerow([signatureDuration, penDownRatio, aRatio, cursiviness])
+        ]
 
 
 def read_signature(file_name):
@@ -254,7 +274,7 @@ def read_signature(file_name):
             x=int(values[0]),
             y=int(values[1]),
             t_stamp=int(values[2]),
-            pressure=values[3],
+            pressure=int(values[3]),
             end_pts=values[4]
         ))
     file.close()

@@ -1,4 +1,4 @@
-# from features.ExtractFeatures import extract_features
+from features.ExtractFeatures import extract_features
 from tkinter.filedialog import askopenfilename
 
 from features.GroupSigns import get_files
@@ -45,9 +45,13 @@ class SelectionWindow:
 
 
 if __name__ == '__main__':
-    dir_path = '/media/bartek/120887D50887B5EF/POLITECHNIKA/Magisterka/SUSigP/Data/BlindSubCorpus/FORGERY'
+    # dir_path = '/media/bartek/120887D50887B5EF/POLITECHNIKA/Magisterka/SUSigP/Data/BlindSubCorpus/FORGERY'
+    #
+    # SelectionWindow(dir_path)
 
-    SelectionWindow(dir_path)
-
-    # extract_features(files_urls=[
-    #     '/media/bartek/120887D50887B5EF/POLITECHNIKA/Magisterka/SUSig/VisualSubCorpus/GENUINE/SESSION2/001_2_1.sig'])
+    extract_features(
+        in_dir_path='/media/bartek/120887D50887B5EF/POLITECHNIKA/Magisterka/SUSigP/Data/BlindSubCorpus',
+        out_dir_path='/media/bartek/120887D50887B5EF/POLITECHNIKA/Magisterka/SUSigP/results',
+        signatory_nr='039',
+        files_urls=['/FORGERY/039_f_9.sig']
+    )
