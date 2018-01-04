@@ -59,7 +59,7 @@ def get_files(file_name, in_dir_path, out_dir_path, recursively=False):
         else:
             extension = "/*.sig"
 
-        for file_url in glob.glob(in_dir_path + extension):
+        for file_url in glob.glob(in_dir_path + extension, recursive=recursively):
             files_urls.append(file_url.replace(in_dir_path, ''))
             # files.append(os.path.basename(file))
 
@@ -74,5 +74,6 @@ def get_files(file_name, in_dir_path, out_dir_path, recursively=False):
                 files_urls=files_urls,
                 signatory_nr=user_signature.nr,
                 in_dir_path=in_dir_path,
-                out_dir_path=out_dir_path + user_signature.relative_path
+                out_dir_path=out_dir_path + user_signature.relative_path,
+                session=user_signature.session
             )

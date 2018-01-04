@@ -13,6 +13,7 @@
 import matplotlib.pyplot as plt
 
 from features.AuxiliaryFunctions import *
+from features.Constants import MAX_TIME
 
 
 def get_derivatives(x, y, t_stamp):
@@ -48,6 +49,17 @@ def calculate_vel_acc(dimensions, t_stamp):
 
 class SignatureParams:
     features_container = []
+    features_names = [
+        'signature_duration_ratio', 'a_Ratio',
+        'pen_ups_ratio', 'pen_up_time_ratio', 'pen_down_ratio',
+        'mass_center_x', 'mass_center_y', 'mass_center_p',
+        'mean_med_x', 'mean_med_y', 'mean_med_p',
+        'points_above_center_r', 'points_left_to_center_r', 'harder_points_r',
+        'std_dev_x', 'std_dev_y', 'std_dev_p',
+        'x_travel_ratio',
+        'x_a_trend', 'y_a_trend', 'p_a_trend',
+        'x_b_trend', 'y_b_trend', 'p_b_trend'
+    ]
 
     # basic values
     x_abs = None
@@ -102,7 +114,7 @@ class SignatureParams:
         self.basic_calculates()
 
         self.calculate_features(
-            visualise_signature=True
+            visualise_signature=False
         )
 
     def fill_basic_fields(self):
@@ -127,17 +139,15 @@ class SignatureParams:
         self.t_steps = pl.diff(self.t_stamp)
         derivatives = derive_and_smooth([self.x_abs, self.y_abs, self.p_abs])
         [self.d_x, self.d_y, self.d_p] = derivatives
-        [self.v_x, self.v_y, self.v_p], [self.a_x, self.a_y, self.a_p] = calculate_vel_acc(derivatives, self.t_stamp)
+        # [self.v_x, self.v_y, self.v_p], [self.a_x, self.a_y, self.a_p] = calculate_vel_acc(derivatives, self.t_stamp)
 
-        self.v_x_plot = SignPlot(self.v_x, self.t_stamp[1:], "v_x(t)")
-        self.v_y_plot = SignPlot(self.v_y, self.t_stamp[1:], "v_y(t)")
-        self.v_p_plot = SignPlot(self.v_p, self.t_stamp[1:], "v_p(t)")
-        # TODO calculations for v and a
-        # ValuesArrays.relativify_field(self.v_x)
+        # self.v_x_plot = SignPlot(self.v_x, self.t_stamp[1:], "v_x(t)")
+        # self.v_y_plot = SignPlot(self.v_y, self.t_stamp[1:], "v_y(t)")
+        # self.v_p_plot = SignPlot(self.v_p, self.t_stamp[1:], "v_p(t)")
 
-        self.a_x_plot = SignPlot(self.a_x, self.t_stamp[1:-1], "v_x(t)")
-        self.a_y_plot = SignPlot(self.a_y, self.t_stamp[1:-1], "v_y(t)")
-        self.a_p_plot = SignPlot(self.a_p, self.t_stamp[1:-1], "v_p(t)")
+        # self.a_x_plot = SignPlot(self.a_x, self.t_stamp[1:-1], "v_x(t)")
+        # self.a_y_plot = SignPlot(self.a_y, self.t_stamp[1:-1], "v_y(t)")
+        # self.a_p_plot = SignPlot(self.a_p, self.t_stamp[1:-1], "v_p(t)")
         # slant
         slant = self.d_y / self.d_x
         slant = np.delete(slant, np.argwhere(np.isnan(slant)))
@@ -150,10 +160,9 @@ class SignatureParams:
 
     def calculate_features(
             self,
-            visualise_signature=False,
-            cursiviness=True):
+            visualise_signature=False
+    ):
         if visualise_signature:
-            # plt.ion()
             plt.plot(self.x_plot.val(), self.y_plot.val())
             plt.gca().invert_yaxis()
             plt.title("Signature visualisation")
@@ -170,9 +179,9 @@ class SignatureParams:
 
         # Component Time Spacing and Pen-Ups
         pen_ups = [t_step for t_step in self.t_steps if t_step > 2 * self.t_steps[0]]
-        pen_ups_ratio = 1 / len(pen_ups)
+        pen_ups_ratio = 1 / (len(pen_ups) + 1)
         penUpTime = sum(pen_ups)
-        pen_up_time_ratio = 1 / penUpTime
+        pen_up_time_ratio = penUpTime / MAX_TIME if penUpTime < MAX_TIME else 1
 
         # pen-down ratio
         penDownTime = signatureDuration - penUpTime
@@ -212,6 +221,7 @@ class SignatureParams:
         path_traveled_x = sum(abs(self.d_x))
         x_travel_ratio = path_traveled_x / max(self.path_traveled)
 
+
         ##################################################
         # x(t) DEPENDENCIES
         ##################################################
@@ -231,15 +241,15 @@ class SignatureParams:
         p_b_trend = normalise_trend(p_trend[1])
 
         # median value
-        mean_med_x = pl.median(self.x_abs)
-        mean_med_y = pl.median(self.y_abs)
-        mean_med_p = pl.median(self.p_abs)
+        mean_med_x = pl.median(self.x_r)
+        mean_med_y = pl.median(self.y_r)
+        mean_med_p = pl.median(self.p_r)
 
         # mean / median velocity
-        mean_max_vel = pl.mean(self.pen_velocity) / pl.median(self.pen_velocity)
+        # mean_max_vel = pl.mean(self.pen_velocity) / pl.median(self.pen_velocity)
 
         # Average velocity
-        meanVelocity = pl.mean(self.pen_velocity)
+        # meanVelocity = pl.mean(self.pen_velocity)
 
         self.features_container = [
             signature_duration_ratio, a_Ratio,
@@ -251,7 +261,6 @@ class SignatureParams:
             x_travel_ratio,
             x_a_trend, y_a_trend, p_a_trend,
             x_b_trend, y_b_trend, p_b_trend,
-
         ]
 
 

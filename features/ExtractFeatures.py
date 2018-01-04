@@ -11,7 +11,7 @@ class Point:
         self.y = y
 
 
-def extract_features(files_urls, signatory_nr='', in_dir_path=None, out_dir_path=None, get_features=None, draw_plots=None, write_data=None):
+def extract_features(files_urls, signatory_nr='', in_dir_path=None, out_dir_path=None, session=''):
     np.seterr(divide='ignore', invalid='ignore')
     signatures = []
 
@@ -20,9 +20,9 @@ def extract_features(files_urls, signatory_nr='', in_dir_path=None, out_dir_path
         signatures.append(SignatureParams(raw_measures))
 
     os.makedirs(os.path.dirname(out_dir_path), exist_ok=True)
-    with open(out_dir_path + signatory_nr + '.csv', 'w') as csvfile:
+    with open(out_dir_path + signatory_nr + '_' + session + '.csv', 'w') as csvfile:
         spamwriter = csv.writer(csvfile)
-        spamwriter.writerow(['signatureDuration', 'penDownRatio', 'aRatio', 'cursiviness'])
+        spamwriter.writerow(SignatureParams.features_names)
         for signature in signatures:
             spamwriter.writerow(signature.features_container)
 
